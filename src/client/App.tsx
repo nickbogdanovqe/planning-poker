@@ -1,25 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { io, type Socket } from "socket.io-client";
 
 import { JoinPanel } from "./components/JoinPanel";
 import { ParticipantsList } from "./components/ParticipantsList";
 import { RevealBoard } from "./components/RevealBoard";
 import { RoomHeader } from "./components/RoomHeader";
 import { VoteDeck } from "./components/VoteDeck";
+import * as roomApi from "./roomApi";
 import type {
-  ClientToServerEvents,
   JoinRoomResult,
   Participant,
   ParticipantRole,
   Room,
   RoomActionResult,
-  ServerToClientEvents,
   VoteValue,
 } from "../shared/types";
-
-type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
-
-const socket: AppSocket = io();
 
 export function App() {
   const [room, setRoom] = useState<Room | undefined>();
@@ -27,27 +21,31 @@ export function App() {
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const invitedRoomId = useMemo(() => getRoomIdFromPath(), []);
+  const participantId = useMemo(() => roomApi.getParticipantId(), []);
 
   useEffect(() => {
-    function handleRoomUpdated(updatedRoom: Room) {
-      setRoom(updatedRoom);
-      setSelf((currentSelf) => {
-        if (!currentSelf) {
-          return currentSelf;
-        }
-
-        return updatedRoom.participants.find((participant) => participant.id === currentSelf.id) ?? currentSelf;
-      });
+    if (!room || !self) {
+      return undefined;
     }
 
-    socket.on("room:updated", handleRoomUpdated);
-    socket.on("room:error", setError);
-
+    const interval = window.setInterval(async () => {
+      const result = await roomApi.getRoom(room.id);
+      if (result.ok) {
+        syncRoom(result.room, participantId);
+      }
+    }, 1200);
     return () => {
-      socket.off("room:updated", handleRoomUpdated);
-      socket.off("room:error", setError);
+      window.clearInterval(interval);
     };
-  }, []);
+  }, [participantId, room?.id, self?.id]);
+
+  function syncRoom(updatedRoom: Room, currentParticipantId = participantId) {
+    setRoom(updatedRoom);
+    setSelf((currentSelf) => {
+      const fallbackId = currentSelf?.id ?? currentParticipantId;
+      return updatedRoom.participants.find((participant) => participant.id === fallbackId) ?? currentSelf;
+    });
+  }
 
   function applyJoinResult(result: JoinRoomResult) {
     if (!result.ok) {
@@ -55,26 +53,28 @@ export function App() {
       return;
     }
 
-    setRoom(result.room);
+    syncRoom(result.room, result.self.id);
     setSelf(result.self);
     setError(undefined);
     window.history.replaceState(null, "", `/room/${result.room.id}`);
   }
 
-  function createRoom(name: string, role: ParticipantRole) {
+  async function createRoom(name: string, role: ParticipantRole) {
     setBusy(true);
-    socket.emit("room:create", { name, role }, (result) => {
+    try {
+      applyJoinResult(await roomApi.createRoom(participantId, name, role));
+    } finally {
       setBusy(false);
-      applyJoinResult(result);
-    });
+    }
   }
 
-  function joinRoom(roomId: string, name: string, role: ParticipantRole) {
+  async function joinRoom(roomId: string, name: string, role: ParticipantRole) {
     setBusy(true);
-    socket.emit("room:join", { roomId, name, role }, (result) => {
+    try {
+      applyJoinResult(await roomApi.joinRoom(participantId, roomId, name, role));
+    } finally {
       setBusy(false);
-      applyJoinResult(result);
-    });
+    }
   }
 
   function handleAction(result: RoomActionResult) {
@@ -84,31 +84,31 @@ export function App() {
     }
 
     setError(undefined);
-    setRoom(result.room);
+    syncRoom(result.room);
   }
 
-  function castVote(value: VoteValue) {
+  async function castVote(value: VoteValue) {
     if (!room) {
       return;
     }
 
-    socket.emit("room:vote", { roomId: room.id, value }, handleAction);
+    handleAction(await roomApi.castVote(participantId, room.id, value));
   }
 
-  function revealRoom() {
+  async function revealRoom() {
     if (!room) {
       return;
     }
 
-    socket.emit("room:reveal", { roomId: room.id }, handleAction);
+    handleAction(await roomApi.revealRoom(participantId, room.id));
   }
 
-  function resetRoom() {
+  async function resetRoom() {
     if (!room) {
       return;
     }
 
-    socket.emit("room:reset", { roomId: room.id }, handleAction);
+    handleAction(await roomApi.resetRoom(participantId, room.id));
   }
 
   if (!room || !self) {

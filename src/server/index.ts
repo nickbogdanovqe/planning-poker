@@ -6,6 +6,8 @@ import express from "express";
 import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 
+import { handleRoomApiRequest } from "./httpApi.js";
+import { createMemoryRoomRepository, createPersistentRoomsService } from "./persistentRooms.js";
 import { createRoomsService } from "./rooms.js";
 import type { ClientToServerEvents, ServerToClientEvents } from "../shared/types.js";
 
@@ -19,7 +21,32 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   },
 });
 const rooms = createRoomsService();
+const apiRooms = createPersistentRoomsService(createMemoryRoomRepository());
 const socketRooms = new Map<string, string>();
+
+app.use(express.json());
+app.get("/api/rooms", async (request, response) => {
+  const result = await handleRoomApiRequest(apiRooms, {
+    method: request.method,
+    query: normalizeQuery(request.query),
+  });
+  response.status(result.status).json(result.body);
+});
+app.post("/api/rooms", async (request, response) => {
+  try {
+    const result = await handleRoomApiRequest(apiRooms, {
+      method: request.method,
+      query: normalizeQuery(request.query),
+      body: typeof request.body === "object" && request.body !== null ? request.body : undefined,
+    });
+    response.status(result.status).json(result.body);
+  } catch (error) {
+    response.status(400).json({
+      ok: false,
+      error: error instanceof Error ? error.message : "Invalid room request.",
+    });
+  }
+});
 
 io.on("connection", (socket) => {
   socket.on("room:create", (input, callback) => {
@@ -94,6 +121,15 @@ function publishResult(roomId: string, result: ReturnType<typeof rooms.castVote>
   }
 
   io.to(roomId).emit("room:error", result.error);
+}
+
+function normalizeQuery(query: express.Request["query"]): Record<string, string | string[] | undefined> {
+  return Object.fromEntries(
+    Object.entries(query).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.map(String) : value === undefined ? undefined : String(value),
+    ]),
+  );
 }
 
 async function configureClientServing(expressApp: express.Express): Promise<void> {
