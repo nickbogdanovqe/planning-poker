@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.33.4",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "dev": "tsx watch src/server/index.ts",
-    "build": "npm run build:client && npm run build:server",
+    "build": "pnpm run build:client && pnpm run build:server",
     "build:client": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
-    "vercel-build": "npm run build:client",
+    "vercel-build": "pnpm run build:client",
     "start": "NODE_ENV=production node dist/server/index.js",
     "test": "vitest run --root .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.api.json",
