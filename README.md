@@ -14,21 +14,21 @@ A polished Planning Poker app for agile teams. Create an estimation room, share 
 ## Getting Started
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Open `http://localhost:3000` and create a room. Open the invite link in another tab or browser to simulate teammates.
 
 ## Scripts
 
-- `npm run dev` starts the Express, Socket.IO, and Vite dev server.
-- `npm test` runs unit tests.
-- `npm run typecheck` verifies TypeScript.
-- `npm run lint` runs ESLint.
-- `npm run build` creates a production client and server build.
-- `npm run vercel-build` creates the static client build used by Vercel.
-- `npm start` runs the production server from `dist/server`.
+- `pnpm run dev` starts the Express, Socket.IO, and Vite dev server.
+- `pnpm test` runs unit tests.
+- `pnpm run typecheck` verifies TypeScript.
+- `pnpm run lint` runs ESLint.
+- `pnpm run build` creates a production client and server build.
+- `pnpm run vercel-build` creates the static client build used by Vercel.
+- `pnpm start` runs the production server from `dist/server`.
 
 ## Vercel Deployment
 
@@ -42,4 +42,4 @@ Vercel serverless functions do not keep a persistent Socket.IO process alive, so
 
 Rooms are stored privately in the Blob store and expire after 12 hours of inactivity (checked lazily on read, so there's no background job to manage). Multiple rooms coexist independently, each as its own blob keyed by room code.
 
-Local development (`npm run dev`) uses the Socket.IO-based Express server, which keeps rooms in memory for the lifetime of the dev process, so local room state resets when the dev server restarts.
+Local development (`pnpm run dev`) uses the Socket.IO-based Express server, which keeps rooms in memory for the lifetime of the dev process, so local room state resets when the dev server restarts.
