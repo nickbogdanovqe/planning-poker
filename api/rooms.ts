@@ -1,6 +1,6 @@
 import { handleRoomApiRequest } from "../src/server/httpApi.js";
+import { createBlobRoomRepository } from "../src/server/blobRoomRepository.js";
 import { createPersistentRoomsService, type PersistentRoomsService } from "../src/server/persistentRooms.js";
-import { createRedisRoomRepository } from "../src/server/redisRoomRepository.js";
 
 interface VercelRequest {
   method?: string;
@@ -34,7 +34,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
 }
 
 function getService(): PersistentRoomsService {
-  service ??= createPersistentRoomsService(createRedisRoomRepository());
+  service ??= createPersistentRoomsService(createBlobRoomRepository());
   return service;
 }
 

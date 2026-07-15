@@ -34,13 +34,12 @@ Open `http://localhost:3000` and create a room. Open the invite link in another 
 
 This project is Vercel-ready. Vercel hosts the Vite client from `dist/client` and serves room actions through the serverless function at `/api/rooms`.
 
-Vercel serverless functions do not keep a persistent Socket.IO process alive, so the deployed app uses HTTP actions with lightweight polling and stores room state in Redis.
+Vercel serverless functions do not keep a persistent Socket.IO process alive, so the deployed app uses HTTP actions with lightweight polling. Room state is stored in [Vercel Blob](https://vercel.com/docs/vercel-blob) as one JSON file per room, so rooms survive cold starts and are shared across every serverless instance.
 
 1. Import the repository in Vercel.
-2. Add Vercel KV or an Upstash Redis database.
-3. Set these environment variables:
-   - `KV_REST_API_URL` and `KV_REST_API_TOKEN` for Vercel KV, or
-   - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for Upstash Redis.
-4. Deploy with the included `vercel.json`.
+2. In the project's **Storage** tab, select **Create Database** → **Blob**, and connect it to the project. Vercel automatically injects the credentials the app needs (`BLOB_READ_WRITE_TOKEN` / OIDC vars) — no manual environment variable setup is required.
+3. Deploy with the included `vercel.json`.
 
-Rooms expire from Redis after 12 hours of inactivity. Local development stores API rooms in memory, so local room state resets when the dev server restarts.
+Rooms are stored privately in the Blob store and expire after 12 hours of inactivity (checked lazily on read, so there's no background job to manage). Multiple rooms coexist independently, each as its own blob keyed by room code.
+
+Local development (`npm run dev`) uses the Socket.IO-based Express server, which keeps rooms in memory for the lifetime of the dev process, so local room state resets when the dev server restarts.
