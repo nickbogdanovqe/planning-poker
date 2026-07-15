@@ -2,14 +2,18 @@ import type { JoinRoomResult, ParticipantRole, RoomActionResult, VoteValue } fro
 
 const PARTICIPANT_ID_KEY = "planning-poker-participant-id";
 
+// sessionStorage (not localStorage) is deliberate: it's scoped to a single tab, so
+// opening the invite link in another tab of the same browser - the normal way to
+// simulate a second teammate - gets its own participant id instead of colliding
+// with the first tab's id and silently merging into one participant.
 export function getParticipantId(): string {
-  const existing = window.localStorage.getItem(PARTICIPANT_ID_KEY);
+  const existing = window.sessionStorage.getItem(PARTICIPANT_ID_KEY);
   if (existing) {
     return existing;
   }
 
   const participantId = window.crypto.randomUUID();
-  window.localStorage.setItem(PARTICIPANT_ID_KEY, participantId);
+  window.sessionStorage.setItem(PARTICIPANT_ID_KEY, participantId);
   return participantId;
 }
 
